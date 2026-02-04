@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model categories {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  is_active  Boolean   @default(true)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  parts      parts[]
+}
+
+model parts {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category_id        String?             @db.Uuid
+  name               String
+  sku                String              @unique
+  description        String?
+  is_active          Boolean             @default(true)
+  created_at         DateTime?           @default(now()) @db.Timestamptz(6)
+  activities         activities[]
+  inventory_balances inventory_balances?
+  category           categories?         @relation(fields: [category_id], references: [id], onUpdate: NoAction)
+  product_parts      product_parts[]
+  template_parts     template_parts[]
+}
+
+model inventory_balances {
+  part_id     String    @id @db.Uuid
+  available   Int       @default(0)
+  issued      Int       @default(0)
+  in_qa       Int       @default(0)
+  rejected    Int       @default(0)
+  maintenance Int       @default(0)
+  damaged     Int       @default(0)
+  ordered     Int       @default(0)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+  parts       parts     @relation(fields: [part_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model app_users {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  is_active         Boolean             @default(true)
+  created_at        DateTime?           @default(now()) @db.Timestamptz(6)
+  project_assignees project_assignees[]
+}
+
+model projects {
+  id                     String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                   String
+  description            String?
+  status                 String              @default("in-progress")
+  dispatch_datetime      DateTime?           @db.Timestamptz(6)
+  dispatch_from_location String?
+  dispatch_to_location   String?
+  receiving_person_name  String?
+  created_at             DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime?           @default(now()) @db.Timestamptz(6)
+  dispatched_at          DateTime?           @db.Timestamptz(6)
+  cancelled_at           DateTime?           @db.Timestamptz(6)
+  is_active              Boolean             @default(true)
+  activities             activities[]
+  products               products[]
+  project_assignees      project_assignees[]
+}
+
+model project_assignees {
+  project_id String    @db.Uuid
+  user_id    String    @db.Uuid
+  projects   projects  @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  app_users  app_users @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([project_id, user_id])
+}
+
+model products {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project_id    String?         @db.Uuid
+  name          String
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  activities    activities[]
+  product_parts product_parts[]
+  projects      projects?       @relation(fields: [project_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model product_parts {
+  product_id String   @db.Uuid
+  part_id    String   @db.Uuid
+  quantity   Int
+  parts      parts    @relation(fields: [part_id], references: [id], onUpdate: NoAction)
+  products   products @relation(fields: [product_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([product_id, part_id])
+}
+
+model product_templates {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  is_active      Boolean          @default(true)
+  created_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?        @default(now()) @db.Timestamptz(6)
+  template_parts template_parts[]
+}
+
+model template_parts {
+  template_id       String            @db.Uuid
+  part_id           String            @db.Uuid
+  quantity          Int
+  parts             parts             @relation(fields: [part_id], references: [id], onUpdate: NoAction)
+  product_templates product_templates @relation(fields: [template_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([template_id, part_id])
+}
+
+model activities {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_type        String
+  part_id           String?   @db.Uuid
+  qty               Int       @default(0)
+  actor_name        String
+  counterparty_name String?
+  purpose           String?
+  project           String?
+  project_id        String?   @db.Uuid
+  product_id        String?   @db.Uuid
+  notes             String?
+  invoice_number    String?
+  invoice_date      DateTime? @db.Date
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  timestamp         String?
+  tags              String[]
+  category_name     String?
+  parts             parts?    @relation(fields: [part_id], references: [id], onUpdate: NoAction)
+  products          products? @relation(fields: [product_id], references: [id], onUpdate: NoAction)
+  projects          projects? @relation(fields: [project_id], references: [id], onUpdate: NoAction)
+}
+
+model data {
+  id  Int    @id @default(autoincrement())
+  msg String
+}
+
+model people {
+  id   Int     @id @default(autoincrement())
+  name String?
+}
